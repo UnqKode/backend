@@ -219,4 +219,83 @@ const refreshAccessToken = asyncHandler(async(req,res)=>{
     }
 })
 
-export { registerUser, loginUser, logOutUser ,refreshAccessToken}
+
+const changeCurrentPassword = asyncHandler(async(req,res)=>{
+    const {oldPasssword , newPassword} = req.body
+
+    const user = User.findById(req.user._id)
+    const isPasswordCorrect = await user.isPasswordCorrect(oldPasssword)
+    if(!isPasswordCorrect){
+        throw new ApiError(400,"Invalid Password")
+    }
+
+    user.password = newPassword
+    await user.save({validateBeforeSave: false})
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200,{},"Password Changed Successfully"))
+})
+
+const getCurrentUser = asyncHandler(async(req,res)=>{
+    return res
+    .status(200)
+    .json(new ApiResponse(200,res.user,"Current user fetched"))
+})
+
+const updateAccountDetail = asyncHandler(async(req,res)=>{
+
+    const {fullname , email} = req.body
+    if(!fullname || !email){
+        throw new ApiError(400,"All feild arer required")
+    }
+
+    const user = User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set:{
+                fullname,
+                email,
+
+            }
+        },
+        {new : true}
+    ).select("-password")
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200,user,"Account Details Updated Succesfully"))
+})
+
+const updateUserAvatar  = asyncHandler(async(req,res)=>{
+    const avatarLocalPAth = req.file?.path
+    if(!avatarLocalPAth){
+        throw new ApiError(400,"Avtar File is Missing")
+    }
+
+    const avatar = await uploadOnCloudinary(avatarLocalPAth)
+
+    if(!avatar.url){
+        throw new ApiError(400,"Avatar File is not uploading")
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set:{
+                avatar:avatar.url
+            }
+        }
+        ,{
+            new : true
+        }
+    ).select("-password")
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200,user,"Avatar Image file")
+    )
+})
+
+export { registerUser, loginUser, logOutUser ,refreshAccessToken,changeCurrentPassword,getCurrentUser,updateAccountDetail,updateUserAvatar}
